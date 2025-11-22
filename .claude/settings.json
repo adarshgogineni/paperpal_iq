@@ -1,0 +1,58 @@
+{
+  "settings": {
+    "permissions": {
+      "rules": [
+        {
+          "action": "allow",
+          "tools": ["bash"],
+          "patterns": [
+            "npm run.*",
+            "npm test.*",
+            "npm install.*",
+            "pnpm.*",
+            "npx supabase.*",
+            "node scripts/.*"
+          ],
+          "description": "Allow common package manager and Supabase CLI commands"
+        },
+        {
+          "action": "ask",
+          "tools": ["bash"],
+          "patterns": [
+            "rm -rf.*",
+            "git push.*",
+            "git force.*",
+            "npm publish.*"
+          ],
+          "description": "Ask before destructive operations"
+        }
+      ]
+    },
+    "hooks": [
+      {
+        "event": "PreToolUse",
+        "matcher": "Write|Edit",
+        "type": "prompt",
+        "prompt": "Before making changes, ensure:\n1. TypeScript strict mode compliance\n2. Next.js App Router best practices\n3. Proper error handling\n4. RLS policies are considered for database operations"
+      }
+    ],
+    "context": {
+      "files": [
+        "CLAUDE.md",
+        "project_summary.md",
+        "README.md"
+      ],
+      "description": "Core documentation files for project context"
+    }
+  },
+  "mcpServers": {
+    "shadcn": {
+      "enabled": true,
+      "description": "UI component management with shadcn/ui"
+    },
+    "github": {
+      "enabled": true,
+      "description": "GitHub integration for issues and PRs"
+    }
+  }
+}
