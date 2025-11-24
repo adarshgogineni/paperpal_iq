@@ -77,7 +77,11 @@ export function DocumentList() {
   return (
     <div className="space-y-4">
       {documents.map((doc) => (
-        <Card key={doc.id} className="hover:shadow-md transition-shadow">
+        <Card
+          key={doc.id}
+          className="hover:shadow-lg transition-all cursor-pointer hover:border-blue-300"
+          onClick={() => router.push(`/dashboard/documents/${doc.id}`)}
+        >
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
@@ -108,17 +112,8 @@ export function DocumentList() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                {doc.file_size ? `${(doc.file_size / 1024 / 1024).toFixed(2)} MB` : "Size unknown"}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(`/dashboard/documents/${doc.id}`)}
-              >
-                View Details
-              </Button>
+            <div className="text-sm text-gray-600">
+              {doc.file_size ? `${(doc.file_size / 1024 / 1024).toFixed(2)} MB` : "Size unknown"}
             </div>
           </CardContent>
         </Card>
