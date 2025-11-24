@@ -22,13 +22,23 @@ export function DocumentList() {
         const response = await fetch("/api/documents")
 
         if (!response.ok) {
-          throw new Error("Failed to fetch documents")
+          if (response.status === 401) {
+            throw new Error("Authentication required. Please log in again.")
+          }
+          if (response.status >= 500) {
+            throw new Error("Server error. Please try again later.")
+          }
+          throw new Error("Failed to load documents. Please refresh the page.")
         }
 
         const data = await response.json()
         setDocuments(data.documents || [])
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred")
+        if (err instanceof TypeError && err.message.includes("fetch")) {
+          setError("Network error. Please check your internet connection.")
+        } else {
+          setError(err instanceof Error ? err.message : "An unexpected error occurred")
+        }
       } finally {
         setLoading(false)
       }
@@ -39,8 +49,26 @@ export function DocumentList() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="animate-pulse">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className="h-5 w-5 bg-gray-200 rounded mt-1"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-5 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                </div>
+                <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-4 bg-gray-200 rounded w-24"></div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     )
   }

@@ -13,6 +13,7 @@ export function UploadDropzone({ onUploadComplete }: UploadDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
@@ -26,47 +27,102 @@ export function UploadDropzone({ onUploadComplete }: UploadDropzoneProps) {
     setIsDragging(false)
   }, [])
 
+  const validateFile = (file: File): string | null => {
+    const MAX_SIZE = 10 * 1024 * 1024 // 10MB in bytes
+
+    if (file.type !== "application/pdf") {
+      return "Please upload a PDF file"
+    }
+
+    if (file.size > MAX_SIZE) {
+      return `File size must be less than 10MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`
+    }
+
+    if (file.size === 0) {
+      return "File appears to be empty"
+    }
+
+    return null
+  }
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
 
     const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile && droppedFile.type === "application/pdf") {
-      setFile(droppedFile)
-      setError(null)
-    } else {
-      setError("Please upload a PDF file")
+    if (!droppedFile) {
+      setError("No file detected")
+      return
     }
+
+    const validationError = validateFile(droppedFile)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
+    setFile(droppedFile)
+    setError(null)
   }, [])
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
-    if (selectedFile && selectedFile.type === "application/pdf") {
-      setFile(selectedFile)
-      setError(null)
-    } else {
-      setError("Please upload a PDF file")
+    if (!selectedFile) {
+      return
     }
+
+    const validationError = validateFile(selectedFile)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
+    setFile(selectedFile)
+    setError(null)
   }, [])
 
   const handleUpload = async () => {
     if (!file) return
 
     setUploading(true)
+    setUploadProgress(0)
     setError(null)
 
     try {
       const formData = new FormData()
       formData.append("file", file)
 
+      // Simulate progress since we can't track real upload progress with fetch
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval)
+            return 90
+          }
+          return prev + 10
+        })
+      }, 200)
+
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       })
 
+      clearInterval(progressInterval)
+      setUploadProgress(100)
+
       const data = await response.json()
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Authentication required. Please log in again.")
+        }
+        if (response.status === 413) {
+          throw new Error("File is too large. Maximum size is 10MB.")
+        }
+        if (response.status >= 500) {
+          throw new Error("Server error. Please try again later.")
+        }
         throw new Error(data.error || "Upload failed")
       }
 
@@ -76,10 +132,16 @@ export function UploadDropzone({ onUploadComplete }: UploadDropzoneProps) {
       // Call completion callback after a short delay
       setTimeout(() => {
         setSuccess(false)
+        setUploadProgress(0)
         onUploadComplete?.()
       }, 2000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed")
+      if (err instanceof TypeError && err.message.includes("fetch")) {
+        setError("Network error. Please check your internet connection and try again.")
+      } else {
+        setError(err instanceof Error ? err.message : "Upload failed")
+      }
+      setUploadProgress(0)
     } finally {
       setUploading(false)
     }
@@ -154,7 +216,7 @@ export function UploadDropzone({ onUploadComplete }: UploadDropzoneProps) {
       {file && !success && (
         <Card>
           <CardContent className="py-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <FileText className="h-8 w-8 text-blue-600" />
                 <div>
@@ -172,6 +234,19 @@ export function UploadDropzone({ onUploadComplete }: UploadDropzoneProps) {
                 {uploading ? "Uploading..." : "Upload"}
               </Button>
             </div>
+            {uploading && (
+              <div className="space-y-2">
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-600 text-center">
+                  {uploadProgress}% uploaded
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

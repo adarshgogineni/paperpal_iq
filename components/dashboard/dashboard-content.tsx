@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { DocumentList } from "@/components/documents/document-list"
 import { UploadModal } from "@/components/upload/upload-modal"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 export function DashboardContent() {
   const [refreshKey, setRefreshKey] = useState(0)
@@ -13,20 +14,22 @@ export function DashboardContent() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900">My Documents</h2>
-          <p className="text-gray-600 mt-1">
-            Manage your research papers and summaries
-          </p>
+    <ErrorBoundary>
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">My Documents</h2>
+            <p className="text-gray-600 mt-1">
+              Manage your research papers and summaries
+            </p>
+          </div>
+          <UploadModal onUploadComplete={handleUploadComplete} />
         </div>
-        <UploadModal onUploadComplete={handleUploadComplete} />
-      </div>
 
-      {/* Document List */}
-      <DocumentList key={refreshKey} />
-    </div>
+        {/* Document List */}
+        <DocumentList key={refreshKey} />
+      </div>
+    </ErrorBoundary>
   )
 }

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { FileText, ArrowLeft, Calendar, Loader2 } from "lucide-react"
 import { Database } from "@/lib/types/database"
 import { AUDIENCES, type Audience } from "@/lib/openai/prompts"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 type Document = Database["public"]["Tables"]["documents"]["Row"]
 type Summary = Database["public"]["Tables"]["summaries"]["Row"]
@@ -59,6 +60,15 @@ export function DocumentDetailContent({
       const data = await response.json()
 
       if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error(data.error || "Rate limit exceeded. Please try again later.")
+        }
+        if (response.status === 401) {
+          throw new Error("Authentication required. Please log in again.")
+        }
+        if (response.status >= 500) {
+          throw new Error("Server error. Please try again in a few moments.")
+        }
         throw new Error(data.error || "Failed to generate summary")
       }
 
@@ -81,7 +91,11 @@ export function DocumentDetailContent({
         })
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate summary")
+      if (err instanceof TypeError && err.message.includes("fetch")) {
+        setError("Network error. Please check your internet connection and try again.")
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to generate summary")
+      }
     } finally {
       setGenerating(false)
     }
@@ -92,9 +106,10 @@ export function DocumentDetailContent({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Button
             variant="ghost"
@@ -273,6 +288,7 @@ export function DocumentDetailContent({
           )}
         </div>
       </main>
-    </div>
+      </div>
+    </ErrorBoundary>
   )
 }
