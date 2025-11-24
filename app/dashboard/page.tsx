@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { logout } from "@/app/auth/actions/auth"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { DashboardContent } from "@/components/dashboard/dashboard-content"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -36,22 +36,7 @@ export default async function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Dashboard</CardTitle>
-            <CardDescription>
-              Your research paper summaries will appear here
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">
-                No documents yet. Upload your first research paper to get started!
-              </p>
-              <Button>Upload Paper</Button>
-            </div>
-          </CardContent>
-        </Card>
+        <DashboardContent />
       </main>
     </div>
   )

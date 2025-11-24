@@ -1,5 +1,15 @@
 import type { Audience } from "@/lib/types/database"
 
+export type { Audience }
+
+export const AUDIENCES = {
+  elementary: "Elementary",
+  high_school: "High School",
+  undergraduate: "Undergraduate",
+  graduate: "Graduate",
+  expert: "Expert",
+} as const
+
 export const AUDIENCE_PROMPTS: Record<Audience, string> = {
   elementary: `You are summarizing a research paper for elementary school students (ages 6-11).
 - Use very simple language that a child can understand
