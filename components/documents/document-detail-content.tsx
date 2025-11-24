@@ -110,71 +110,71 @@ export function DocumentDetailContent({
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <header className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Button
-            variant="ghost"
-            onClick={() => router.push("/dashboard")}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Documents
-          </Button>
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-4">
-              <FileText className="h-8 w-8 text-blue-600 mt-1" />
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {document.title}
-                </h1>
-                <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    {new Date(document.created_at).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </span>
-                  <span>
-                    {document.file_size
-                      ? `${(document.file_size / 1024 / 1024).toFixed(2)} MB`
-                      : "Size unknown"}
-                  </span>
-                  <Badge variant="outline">{document.status}</Badge>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/dashboard")}
+              className="mb-4"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Documents
+            </Button>
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-4">
+                <FileText className="h-8 w-8 text-blue-600 mt-1" />
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">
+                    {document.title}
+                  </h1>
+                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      {new Date(document.created_at).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </span>
+                    <span>
+                      {document.file_size
+                        ? `${(document.file_size / 1024 / 1024).toFixed(2)} MB`
+                        : "Size unknown"}
+                    </span>
+                    <Badge variant="outline">{document.status}</Badge>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-6">
-          {/* Audience Selection */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle>Generate Summary</CardTitle>
-                  <CardDescription>
-                    Select an audience level to generate a tailored summary
-                  </CardDescription>
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-6">
+            {/* Audience Selection */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle>Generate Summary</CardTitle>
+                    <CardDescription>
+                      Select an audience level to generate a tailored summary
+                    </CardDescription>
+                  </div>
+                  {rateLimitInfo.remaining !== null && (
+                    <Badge variant={rateLimitInfo.remaining === 0 ? "destructive" : "secondary"}>
+                      {rateLimitInfo.remaining}/{rateLimitInfo.limit} remaining today
+                    </Badge>
+                  )}
                 </div>
-                {rateLimitInfo.remaining !== null && (
-                  <Badge variant={rateLimitInfo.remaining === 0 ? "destructive" : "secondary"}>
-                    {rateLimitInfo.remaining}/{rateLimitInfo.limit} remaining today
-                  </Badge>
+              </CardHeader>
+              <CardContent>
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm mb-4">
+                    {error}
+                  </div>
                 )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm mb-4">
-                  {error}
-                </div>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                 {(Object.keys(AUDIENCES) as Audience[]).map((audience) => {
                   const summary = getSummaryForAudience(audience)
                   const isGenerating = generating && selectedAudience === audience
@@ -286,8 +286,8 @@ export function DocumentDetailContent({
               </CardContent>
             </Card>
           )}
-        </div>
-      </main>
+          </div>
+        </main>
       </div>
     </ErrorBoundary>
   )
