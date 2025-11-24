@@ -89,6 +89,32 @@ export interface Database {
           created_at?: string
         }
       }
+      rate_limits: {
+        Row: {
+          id: string
+          user_id: string
+          date: string
+          summaries_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          date?: string
+          summaries_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          date?: string
+          summaries_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

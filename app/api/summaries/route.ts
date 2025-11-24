@@ -6,6 +6,8 @@ import type { Audience } from "@/lib/openai/prompts"
 
 export const dynamic = "force-dynamic"
 
+const DAILY_LIMIT = 5
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -62,6 +64,36 @@ export async function POST(request: NextRequest) {
         summary: existingSummary,
         cached: true,
       })
+    }
+
+    // Check rate limit (only for new summaries)
+    const today = new Date().toISOString().split("T")[0]
+
+    // Get or create rate limit record for today
+    const { data: rateLimit, error: rateLimitError } = await supabase
+      .from("rate_limits")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .single()
+
+    if (rateLimitError && rateLimitError.code !== "PGRST116") {
+      // Error other than "not found"
+      console.error("Rate limit check error:", rateLimitError)
+    }
+
+    const currentCount = rateLimit?.summaries_count || 0
+
+    if (currentCount >= DAILY_LIMIT) {
+      return NextResponse.json(
+        {
+          error: `Daily limit reached. You can generate ${DAILY_LIMIT} summaries per day. Limit resets at midnight UTC.`,
+          limit: DAILY_LIMIT,
+          used: currentCount,
+          resetsAt: new Date(new Date(today).getTime() + 24 * 60 * 60 * 1000).toISOString()
+        },
+        { status: 429 }
+      )
     }
 
     // Download PDF from storage
@@ -127,9 +159,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Update rate limit counter
+    if (rateLimit) {
+      // Update existing record
+      await supabase
+        .from("rate_limits")
+        .update({ summaries_count: currentCount + 1 })
+        .eq("id", rateLimit.id)
+    } else {
+      // Create new record
+      await supabase
+        .from("rate_limits")
+        .insert({
+          user_id: user.id,
+          date: today,
+          summaries_count: 1,
+        })
+    }
+
     return NextResponse.json({
       summary: savedSummary,
       cached: false,
+      remainingToday: DAILY_LIMIT - currentCount - 1,
     })
   } catch (error) {
     console.error("Unexpected error:", error)

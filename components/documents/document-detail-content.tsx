@@ -27,6 +27,10 @@ export function DocumentDetailContent({
   const [selectedAudience, setSelectedAudience] = useState<Audience | null>(null)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rateLimitInfo, setRateLimitInfo] = useState<{
+    remaining: number | null
+    limit: number
+  }>({ remaining: null, limit: 5 })
 
   const handleGenerateSummary = async (audience: Audience) => {
     // If already generated, just select it
@@ -56,6 +60,14 @@ export function DocumentDetailContent({
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to generate summary")
+      }
+
+      // Update rate limit info if provided
+      if (data.remainingToday !== undefined) {
+        setRateLimitInfo((prev) => ({
+          ...prev,
+          remaining: data.remainingToday,
+        }))
       }
 
       // Add new summary to the list if not cached
@@ -127,10 +139,19 @@ export function DocumentDetailContent({
           {/* Audience Selection */}
           <Card>
             <CardHeader>
-              <CardTitle>Generate Summary</CardTitle>
-              <CardDescription>
-                Select an audience level to generate a tailored summary
-              </CardDescription>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>Generate Summary</CardTitle>
+                  <CardDescription>
+                    Select an audience level to generate a tailored summary
+                  </CardDescription>
+                </div>
+                {rateLimitInfo.remaining !== null && (
+                  <Badge variant={rateLimitInfo.remaining === 0 ? "destructive" : "secondary"}>
+                    {rateLimitInfo.remaining}/{rateLimitInfo.limit} remaining today
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {error && (
