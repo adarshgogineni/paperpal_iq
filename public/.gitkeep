@@ -1,0 +1,9 @@
+# Place your static assets here
+
+## Logo Files
+- logo.png (for use in the app UI)
+- Any other images or static files
+
+## Note
+The app/ directory is where you should place favicon and app icons.
+See DEPLOYMENT_CHECKLIST.md for details.

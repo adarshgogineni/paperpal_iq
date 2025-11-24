@@ -13,14 +13,14 @@ export default function NotFound() {
             <div>
               <CardTitle>Page Not Found</CardTitle>
               <CardDescription>
-                The page you're looking for doesn't exist
+                The page you&apos;re looking for doesn&apos;t exist
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-gray-600">
-            The document or page you're trying to access may have been moved or deleted.
+            The document or page you&apos;re trying to access may have been moved or deleted.
           </p>
           <div className="flex gap-3">
             <Link href="/dashboard" className="flex-1">
