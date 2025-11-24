@@ -28,6 +28,13 @@ export function DocumentDetailContent({
   const [error, setError] = useState<string | null>(null)
 
   const handleGenerateSummary = async (audience: Audience) => {
+    // If already generated, just select it
+    const existingSummary = getSummaryForAudience(audience)
+    if (existingSummary) {
+      setSelectedAudience(audience)
+      return
+    }
+
     setSelectedAudience(audience)
     setGenerating(true)
     setError(null)
@@ -161,50 +168,49 @@ export function DocumentDetailContent({
             </CardContent>
           </Card>
 
-          {/* Summaries List */}
-          {summaries.length > 0 && (
+          {/* Selected Summary Display */}
+          {selectedAudience && getSummaryForAudience(selectedAudience) && (
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-gray-900">Summaries</h2>
-              {summaries.map((summary) => (
-                <Card key={summary.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="capitalize">
-                        {summary.audience} Level
-                      </CardTitle>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span>
-                          {new Date(summary.created_at).toLocaleDateString()}
-                        </span>
-                        <Badge variant="outline">
-                          {summary.tokens_used} tokens
-                        </Badge>
-                      </div>
+              <h2 className="text-2xl font-bold text-gray-900">Summary</h2>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="capitalize">
+                      {selectedAudience.replace("_", " ")} Level
+                    </CardTitle>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <span>
+                        {new Date(
+                          getSummaryForAudience(selectedAudience)!.created_at
+                        ).toLocaleDateString()}
+                      </span>
+                      <Badge variant="outline">
+                        {getSummaryForAudience(selectedAudience)!.tokens_used} tokens
+                      </Badge>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="prose max-w-none">
-                      <p className="text-gray-700 whitespace-pre-wrap">
-                        {summary.summary_text}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="prose max-w-none">
+                    <p className="text-gray-700 whitespace-pre-wrap">
+                      {getSummaryForAudience(selectedAudience)!.summary_text}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
           {/* Empty State */}
-          {summaries.length === 0 && !generating && (
+          {!selectedAudience && !generating && (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <FileText className="h-12 w-12 text-gray-400 mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  No summaries yet
+                  No summary selected
                 </h3>
                 <p className="text-gray-600 max-w-md">
-                  Select an audience level above to generate your first AI-powered
-                  summary
+                  Select an audience level above to view or generate a tailored summary
                 </p>
               </CardContent>
             </Card>
