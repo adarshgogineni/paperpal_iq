@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import ReactMarkdown from "react-markdown"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -191,10 +192,44 @@ export function DocumentDetailContent({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="prose max-w-none">
-                    <p className="text-gray-700 whitespace-pre-wrap">
+                  <style jsx>{`
+                    .summary-content strong {
+                      display: block;
+                      margin-top: 1.5rem;
+                      margin-bottom: 0.5rem;
+                      font-weight: 600;
+                      color: #111827;
+                    }
+                    .summary-content p {
+                      margin-bottom: 1.25rem;
+                      line-height: 1.75;
+                      color: #374151;
+                    }
+                    .summary-content h1,
+                    .summary-content h2,
+                    .summary-content h3 {
+                      font-weight: 700;
+                      margin-top: 2rem;
+                      margin-bottom: 1rem;
+                      color: #111827;
+                    }
+                    .summary-content h1 { font-size: 1.5rem; }
+                    .summary-content h2 { font-size: 1.25rem; }
+                    .summary-content h3 { font-size: 1.125rem; }
+                    .summary-content ul,
+                    .summary-content ol {
+                      margin: 1rem 0;
+                      padding-left: 1.5rem;
+                    }
+                    .summary-content li {
+                      margin-bottom: 0.5rem;
+                      color: #374151;
+                    }
+                  `}</style>
+                  <div className="summary-content text-gray-700 leading-relaxed">
+                    <ReactMarkdown>
                       {getSummaryForAudience(selectedAudience)!.summary_text}
-                    </p>
+                    </ReactMarkdown>
                   </div>
                 </CardContent>
               </Card>
