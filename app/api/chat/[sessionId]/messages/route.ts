@@ -110,16 +110,30 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Retrieve relevant chunks using RAG
     const chunks = await retrieveRelevantChunks(message, session.document_id, {
-      matchThreshold: 0.3, // Lower threshold for more matches
+      matchThreshold: 0.1, // Very low threshold to catch more potential matches
       matchCount: 5,
     })
 
+    console.log(`[RAG] Query: "${message}" | Chunks found: ${chunks.length}`)
+    if (chunks.length > 0) {
+      console.log(`[RAG] Similarities: ${chunks.map(c => c.similarity.toFixed(3)).join(', ')}`)
+    }
+
     if (chunks.length === 0) {
+      // Check if document has been processed for chat
+      const { count: chunkCount } = await supabase
+        .from("document_chunks")
+        .select("*", { count: "exact", head: true })
+        .eq("document_id", session.document_id)
+
+      console.log(`[RAG] Total chunks in document: ${chunkCount || 0}`)
+
+      const errorMessage = chunkCount === 0
+        ? "This document hasn't been processed for chat yet. Please click 'Process for Chat' first."
+        : "No relevant content found. Try asking about specific topics from the paper, or try rephrasing your question."
+
       return NextResponse.json(
-        {
-          error:
-            "No relevant content found. Try asking about specific topics from the paper.",
-        },
+        { error: errorMessage },
         { status: 404 }
       )
     }
