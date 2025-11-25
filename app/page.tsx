@@ -268,7 +268,7 @@ export default function Home() {
               </AccordionTrigger>
               <AccordionContent className="text-gray-600">
                 Free users can generate 5 summaries per day. Each summary is cached, so regenerating the same summary for
-                the same audience level doesn't count toward your limit.
+                the same audience level doesn&apos;t count toward your limit.
               </AccordionContent>
             </AccordionItem>
 

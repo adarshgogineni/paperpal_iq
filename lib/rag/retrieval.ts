@@ -152,13 +152,10 @@ export function getRetrievalStats(chunks: RetrievedChunk[]): {
   const avgSimilarity =
     similarities.reduce((sum, s) => sum + s, 0) / similarities.length
 
-  const pagesCovered = [
-    ...new Set(
-      chunks
-        .map((c) => c.pageNumber)
-        .filter((p): p is number => p !== null)
-    ),
-  ].sort((a, b) => a - b)
+  const pageNumbers = chunks
+    .map((c) => c.pageNumber)
+    .filter((p): p is number => p !== null)
+  const pagesCovered = Array.from(new Set(pageNumbers)).sort((a, b) => a - b)
 
   return {
     totalChunks: chunks.length,
