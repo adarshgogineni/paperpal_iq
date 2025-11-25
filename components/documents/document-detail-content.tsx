@@ -1,19 +1,35 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, ArrowLeft, Calendar, Loader2, MessageSquare, Sparkles } from "lucide-react"
+import { FileText, ArrowLeft, Calendar, Loader2, MessageSquare, Sparkles, History } from "lucide-react"
 import { Database } from "@/lib/types/database"
 import { AUDIENCES, type Audience } from "@/lib/openai/prompts"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ChatInterface } from "@/components/chat/chat-interface"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 
 type Document = Database["public"]["Tables"]["documents"]["Row"]
 type Summary = Database["public"]["Tables"]["summaries"]["Row"]
+
+interface ChatSession {
+  id: string
+  documentId: string
+  audience: Audience
+  title: string
+  createdAt: string
+  updatedAt: string
+}
 
 interface DocumentDetailContentProps {
   document: Document
@@ -33,10 +49,32 @@ export function DocumentDetailContent({
   const [processingChunks, setProcessingChunks] = useState(false)
   const [activeChatSession, setActiveChatSession] = useState<string | null>(null)
   const [chatAudience, setChatAudience] = useState<Audience | null>(null)
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const [loadingSessions, setLoadingSessions] = useState(false)
   const [rateLimitInfo, setRateLimitInfo] = useState<{
     remaining: number | null
     limit: number
   }>({ remaining: null, limit: 5 })
+
+  // Fetch chat sessions for this document
+  useEffect(() => {
+    const fetchChatSessions = async () => {
+      try {
+        setLoadingSessions(true)
+        const response = await fetch(`/api/chat/sessions?documentId=${document.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          setChatSessions(data.sessions)
+        }
+      } catch (err) {
+        console.error("Failed to load chat sessions:", err)
+      } finally {
+        setLoadingSessions(false)
+      }
+    }
+
+    fetchChatSessions()
+  }, [document.id])
 
   const handleGenerateSummary = async (audience: Audience) => {
     // If already generated, just select it
@@ -112,6 +150,10 @@ export function DocumentDetailContent({
     return summaries.find((s) => s.audience === audience)
   }
 
+  const getSessionsForAudience = (audience: Audience) => {
+    return chatSessions.filter((s) => s.audience === audience)
+  }
+
   const handleProcessChunks = async () => {
     try {
       setProcessingChunks(true)
@@ -164,12 +206,32 @@ export function DocumentDetailContent({
       }
 
       const data = await response.json()
+
+      // Add new session to the list
+      setChatSessions((prev) => [
+        {
+          id: data.session.id,
+          documentId: data.session.documentId,
+          audience: data.session.audience,
+          title: data.session.title,
+          createdAt: data.session.createdAt,
+          updatedAt: data.session.updatedAt,
+        },
+        ...prev,
+      ])
+
       setActiveChatSession(data.session.id)
       setChatAudience(audience)
       setSelectedAudience(null) // Close summary when opening chat
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start chat")
     }
+  }
+
+  const handleResumeChat = (sessionId: string, audience: Audience) => {
+    setActiveChatSession(sessionId)
+    setChatAudience(audience)
+    setSelectedAudience(null) // Close summary when opening chat
   }
 
   return (
@@ -271,17 +333,55 @@ export function DocumentDetailContent({
                           )}
                         </Button>
 
-                        {/* Chat Button */}
-                        <Button
-                          variant={isChatActive ? "default" : "outline"}
-                          size="sm"
-                          className="w-full"
-                          onClick={() => handleStartChat(audience)}
-                          disabled={processingChunks || generating}
-                        >
-                          <MessageSquare className="h-3 w-3 mr-1" />
-                          Chat
-                        </Button>
+                        {/* Chat Button with History */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant={isChatActive ? "default" : "outline"}
+                              size="sm"
+                              className="w-full"
+                              disabled={processingChunks || generating}
+                            >
+                              {loadingSessions ? (
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              ) : (
+                                <MessageSquare className="h-3 w-3 mr-1" />
+                              )}
+                              Chat
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuItem
+                              onClick={() => handleStartChat(audience)}
+                              className="cursor-pointer"
+                            >
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              New Chat
+                            </DropdownMenuItem>
+                            {getSessionsForAudience(audience).length > 0 && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <div className="px-2 py-1.5 text-xs font-semibold text-gray-500">
+                                  Chat History
+                                </div>
+                                {getSessionsForAudience(audience).map((session) => (
+                                  <DropdownMenuItem
+                                    key={session.id}
+                                    onClick={() => handleResumeChat(session.id, audience)}
+                                    className="cursor-pointer"
+                                  >
+                                    <History className="h-4 w-4 mr-2" />
+                                    <div className="flex-1 overflow-hidden">
+                                      <div className="text-xs text-gray-500">
+                                        {new Date(session.createdAt).toLocaleDateString()}
+                                      </div>
+                                    </div>
+                                  </DropdownMenuItem>
+                                ))}
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     )
                   })}
