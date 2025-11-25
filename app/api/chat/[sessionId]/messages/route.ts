@@ -75,7 +75,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .single()
 
     const currentCount = rateLimit?.chat_messages_count || 0
-    const MAX_CHAT_MESSAGES = 50 // 50 messages per day
+    const MAX_CHAT_MESSAGES = 10 // 10 messages per day
 
     if (currentCount >= MAX_CHAT_MESSAGES) {
       return NextResponse.json(
