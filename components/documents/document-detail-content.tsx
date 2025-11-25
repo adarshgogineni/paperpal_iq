@@ -183,13 +183,21 @@ export function DocumentDetailContent({
   }
 
   const handleStartChat = async (audience: Audience) => {
-    if (!chunksGenerated) {
-      await handleProcessChunks()
-      if (!chunksGenerated) return // If processing failed
-    }
-
     try {
       setError(null)
+
+      // Process chunks if not already done
+      if (!chunksGenerated) {
+        try {
+          await handleProcessChunks()
+          // Explicitly set after processing completes successfully
+          setChunksGenerated(true)
+        } catch (err) {
+          // Error already set in handleProcessChunks
+          return // Exit early if processing failed
+        }
+      }
+
       // Create new chat session
       const response = await fetch("/api/chat/sessions", {
         method: "POST",
