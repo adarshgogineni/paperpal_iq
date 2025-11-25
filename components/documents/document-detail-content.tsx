@@ -6,10 +6,11 @@ import ReactMarkdown from "react-markdown"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, ArrowLeft, Calendar, Loader2 } from "lucide-react"
+import { FileText, ArrowLeft, Calendar, Loader2, MessageSquare, Sparkles } from "lucide-react"
 import { Database } from "@/lib/types/database"
 import { AUDIENCES, type Audience } from "@/lib/openai/prompts"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { ChatInterface } from "@/components/chat/chat-interface"
 
 type Document = Database["public"]["Tables"]["documents"]["Row"]
 type Summary = Database["public"]["Tables"]["summaries"]["Row"]
@@ -28,6 +29,10 @@ export function DocumentDetailContent({
   const [selectedAudience, setSelectedAudience] = useState<Audience | null>(null)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [chunksGenerated, setChunksGenerated] = useState(false)
+  const [processingChunks, setProcessingChunks] = useState(false)
+  const [activeChatSession, setActiveChatSession] = useState<string | null>(null)
+  const [chatAudience, setChatAudience] = useState<Audience | null>(null)
   const [rateLimitInfo, setRateLimitInfo] = useState<{
     remaining: number | null
     limit: number
@@ -38,10 +43,12 @@ export function DocumentDetailContent({
     const existingSummary = getSummaryForAudience(audience)
     if (existingSummary) {
       setSelectedAudience(audience)
+      setChatAudience(null) // Close chat when selecting summary
       return
     }
 
     setSelectedAudience(audience)
+    setChatAudience(null)
     setGenerating(true)
     setError(null)
 
@@ -105,6 +112,66 @@ export function DocumentDetailContent({
     return summaries.find((s) => s.audience === audience)
   }
 
+  const handleProcessChunks = async () => {
+    try {
+      setProcessingChunks(true)
+      setError(null)
+
+      const response = await fetch(`/api/documents/${document.id}/process-chunks`, {
+        method: "POST",
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to process document")
+      }
+
+      const data = await response.json()
+
+      // Set chunks generated regardless of whether it was already processed or just completed
+      setChunksGenerated(true)
+
+      return data // Return data for further use
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to process document for chat")
+      throw err // Re-throw so caller knows it failed
+    } finally {
+      setProcessingChunks(false)
+    }
+  }
+
+  const handleStartChat = async (audience: Audience) => {
+    if (!chunksGenerated) {
+      await handleProcessChunks()
+      if (!chunksGenerated) return // If processing failed
+    }
+
+    try {
+      setError(null)
+      // Create new chat session
+      const response = await fetch("/api/chat/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documentId: document.id,
+          audience,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to create chat session")
+      }
+
+      const data = await response.json()
+      setActiveChatSession(data.session.id)
+      setChatAudience(audience)
+      setSelectedAudience(null) // Close summary when opening chat
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start chat")
+    }
+  }
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-gray-50">
@@ -156,14 +223,14 @@ export function DocumentDetailContent({
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle>Generate Summary</CardTitle>
+                    <CardTitle>Generate Summary or Chat</CardTitle>
                     <CardDescription>
-                      Select an audience level to generate a tailored summary
+                      Select an audience level to view summaries or start chatting
                     </CardDescription>
                   </div>
                   {rateLimitInfo.remaining !== null && (
                     <Badge variant={rateLimitInfo.remaining === 0 ? "destructive" : "secondary"}>
-                      {rateLimitInfo.remaining}/{rateLimitInfo.limit} remaining today
+                      {rateLimitInfo.remaining}/{rateLimitInfo.limit} summaries remaining today
                     </Badge>
                   )}
                 </div>
@@ -174,118 +241,172 @@ export function DocumentDetailContent({
                     {error}
                   </div>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                {(Object.keys(AUDIENCES) as Audience[]).map((audience) => {
-                  const summary = getSummaryForAudience(audience)
-                  const isGenerating = generating && selectedAudience === audience
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  {(Object.keys(AUDIENCES) as Audience[]).map((audience) => {
+                    const summary = getSummaryForAudience(audience)
+                    const isGenerating = generating && selectedAudience === audience
+                    const isSelected = selectedAudience === audience && !chatAudience
+                    const isChatActive = chatAudience === audience
 
-                  return (
-                    <Button
-                      key={audience}
-                      variant={summary ? "default" : "outline"}
-                      className="h-auto py-4 flex flex-col items-center gap-2"
-                      onClick={() => handleGenerateSummary(audience)}
-                      disabled={generating}
-                    >
-                      {isGenerating && (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      )}
-                      <span className="font-semibold capitalize">
-                        {audience}
-                      </span>
-                      {summary && (
-                        <span className="text-xs opacity-80">
-                          ✓ Generated
-                        </span>
-                      )}
-                    </Button>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                    return (
+                      <div key={audience} className="flex flex-col gap-2">
+                        {/* Summary Button */}
+                        <Button
+                          variant={isSelected ? "default" : summary ? "secondary" : "outline"}
+                          className="h-auto py-4 flex flex-col items-center gap-2"
+                          onClick={() => handleGenerateSummary(audience)}
+                          disabled={generating || processingChunks}
+                        >
+                          {isGenerating && (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          )}
+                          <Sparkles className="h-4 w-4" />
+                          <span className="font-semibold capitalize">
+                            {AUDIENCES[audience]}
+                          </span>
+                          {summary && !isGenerating && (
+                            <span className="text-xs opacity-80">
+                              ✓ Summary Ready
+                            </span>
+                          )}
+                        </Button>
 
-          {/* Selected Summary Display */}
-          {selectedAudience && getSummaryForAudience(selectedAudience) && (
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-gray-900">Summary</h2>
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="capitalize">
-                      {selectedAudience.replace("_", " ")} Level
-                    </CardTitle>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <span>
-                        {new Date(
-                          getSummaryForAudience(selectedAudience)!.created_at
-                        ).toLocaleDateString()}
-                      </span>
-                      <Badge variant="outline">
-                        {getSummaryForAudience(selectedAudience)!.tokens_used} tokens
-                      </Badge>
+                        {/* Chat Button */}
+                        <Button
+                          variant={isChatActive ? "default" : "outline"}
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleStartChat(audience)}
+                          disabled={processingChunks || generating}
+                        >
+                          <MessageSquare className="h-3 w-3 mr-1" />
+                          Chat
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
+                {processingChunks && (
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <div className="flex items-center gap-2 text-blue-800 text-sm">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Processing document for chat... This may take 10-30 seconds.</span>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <style jsx>{`
-                    .summary-content strong {
-                      display: block;
-                      margin-top: 1.5rem;
-                      margin-bottom: 0.5rem;
-                      font-weight: 600;
-                      color: #111827;
-                    }
-                    .summary-content p {
-                      margin-bottom: 1.25rem;
-                      line-height: 1.75;
-                      color: #374151;
-                    }
-                    .summary-content h1,
-                    .summary-content h2,
-                    .summary-content h3 {
-                      font-weight: 700;
-                      margin-top: 2rem;
-                      margin-bottom: 1rem;
-                      color: #111827;
-                    }
-                    .summary-content h1 { font-size: 1.5rem; }
-                    .summary-content h2 { font-size: 1.25rem; }
-                    .summary-content h3 { font-size: 1.125rem; }
-                    .summary-content ul,
-                    .summary-content ol {
-                      margin: 1rem 0;
-                      padding-left: 1.5rem;
-                    }
-                    .summary-content li {
-                      margin-bottom: 0.5rem;
-                      color: #374151;
-                    }
-                  `}</style>
-                  <div className="summary-content text-gray-700 leading-relaxed">
-                    <ReactMarkdown>
-                      {getSummaryForAudience(selectedAudience)!.summary_text}
-                    </ReactMarkdown>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!selectedAudience && !generating && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <FileText className="h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  No summary selected
-                </h3>
-                <p className="text-gray-600 max-w-md">
-                  Select an audience level above to view or generate a tailored summary
-                </p>
+                )}
               </CardContent>
             </Card>
-          )}
+
+            {/* Chat Interface */}
+            {chatAudience && activeChatSession && (
+              <Card className="h-[600px] flex flex-col">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">
+                      Chat - {AUDIENCES[chatAudience]} Level
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setChatAudience(null)
+                        setActiveChatSession(null)
+                      }}
+                    >
+                      Close Chat
+                    </Button>
+                  </div>
+                </CardHeader>
+                <div className="flex-1 overflow-hidden">
+                  <ChatInterface
+                    sessionId={activeChatSession}
+                    audience={AUDIENCES[chatAudience]}
+                  />
+                </div>
+              </Card>
+            )}
+
+            {/* Selected Summary Display */}
+            {selectedAudience && !chatAudience && getSummaryForAudience(selectedAudience) && (
+              <div className="space-y-4">
+                <h2 className="text-2xl font-bold text-gray-900">Summary</h2>
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="capitalize">
+                        {AUDIENCES[selectedAudience]} Level
+                      </CardTitle>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <span>
+                          {new Date(
+                            getSummaryForAudience(selectedAudience)!.created_at
+                          ).toLocaleDateString()}
+                        </span>
+                        <Badge variant="outline">
+                          {getSummaryForAudience(selectedAudience)!.tokens_used} tokens
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <style jsx>{`
+                      .summary-content strong {
+                        display: block;
+                        margin-top: 1.5rem;
+                        margin-bottom: 0.5rem;
+                        font-weight: 600;
+                        color: #111827;
+                      }
+                      .summary-content p {
+                        margin-bottom: 1.25rem;
+                        line-height: 1.75;
+                        color: #374151;
+                      }
+                      .summary-content h1,
+                      .summary-content h2,
+                      .summary-content h3 {
+                        font-weight: 700;
+                        margin-top: 2rem;
+                        margin-bottom: 1rem;
+                        color: #111827;
+                      }
+                      .summary-content h1 { font-size: 1.5rem; }
+                      .summary-content h2 { font-size: 1.25rem; }
+                      .summary-content h3 { font-size: 1.125rem; }
+                      .summary-content ul,
+                      .summary-content ol {
+                        margin: 1rem 0;
+                        padding-left: 1.5rem;
+                      }
+                      .summary-content li {
+                        margin-bottom: 0.5rem;
+                        color: #374151;
+                      }
+                    `}</style>
+                    <div className="summary-content text-gray-700 leading-relaxed">
+                      <ReactMarkdown>
+                        {getSummaryForAudience(selectedAudience)!.summary_text}
+                      </ReactMarkdown>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!selectedAudience && !chatAudience && !generating && (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                  <FileText className="h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Get Started
+                  </h3>
+                  <p className="text-gray-600 max-w-md">
+                    Select an audience level above to generate a summary or start a chat conversation about this paper
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </main>
       </div>
